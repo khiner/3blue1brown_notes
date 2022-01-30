@@ -15,73 +15,77 @@ macro bind(def, element)
 end
 
 # ╔═╡ 10b21328-8133-11ec-1cb7-b199cf96266b
-using Plots
+using Plots # Using default GR backend
 
 # ╔═╡ 3b54755b-e67e-4d9e-b977-3929156fee01
+using LinearAlgebra, Rotations
+
+# ╔═╡ 01f720c9-b218-41f4-b7c7-73c3b7ccf26d
 using PlutoUI
 
-# ╔═╡ ff531895-b6b5-4170-b2ca-27b86a3c16f3
-using LinearAlgebra
-
-# ╔═╡ 77829290-d3b7-446c-a3e2-dd012df34c13
-using Rotations
-
-# ╔═╡ 64934204-8ffb-4088-97af-579f653e9bae
-plotly() # plotly backend for Plots
-
 # ╔═╡ 88498d15-e83f-4385-8da1-87f5cbc6b8d0
-function box_mesh(position=[0.0, 0.0, 0.0], dimensions=[1.0, 1.0, 1.0])
-	l, w, h = dimensions
-	# x,y,z are center coords. convert to corner doords.
-	x, y, z = position - dimensions / 2
-	X = [x, x+l, x, x+l, x, x+l, x, x+l]
-	Y = [y, y, y+w, y+w, y, y, y+w, y+w]
-	Z = [z, z, z, z, z+h, z+h, z+h, z+h]
-	return [X,Y,Z]
-end
+begin
+	function box_mesh(position=[0.0, 0.0, 0.0], dimensions=[1.0, 1.0, 1.0])
+		l, w, h = dimensions
+		# x,y,z are center coords. convert to corner doords.
+		x, y, z = position - dimensions / 2
+		X = [x, x+l, x,   x+l, x,   x+l, x,   x+l]
+		Y = [y, y,   y+w, y+w, y,   y,   y+w, y+w]
+		Z = [z, z,   z,   z,   z+h, z+h, z+h, z+h]
+		return [X,Y,Z]
+	end
 
-# ╔═╡ 2d35b3c5-3b40-4626-b252-32caacdb7f03
-cube_mesh(position=[0.0, 0.0, 0.0], l=1.0) = box_mesh(position,[l,l,l])
+	# A cube is a box where all dimensions (l/w/h) are the same
+	cube_mesh(position=[0.0, 0.0, 0.0], l=1.0) = box_mesh(position, [l,l,l])
+
+	# Two triangles per face = 2*6=12 triangles
+	# See https://docs.juliaplots.org/stable/generated/gr/#gr-ref47
+	BOX_CONNECTIONS = (
+		[0,1, 0,0, 0,0, 1,1, 2,2, 4,4],
+		[1,2, 1,4, 2,4, 3,5, 3,6, 5,6],
+		[2,3, 5,5, 6,6, 7,7, 7,7, 7,7],
+	)
+end
 
 # ╔═╡ 32b1a8d8-b2b5-417d-a6e8-4190914d6c9f
-function rotate_mesh(mesh, xθ=0.0, yθ=0.0, zθ=0.0)
-	# Can't figure out how to do all 3 in one `AngleAxis` call yet...
-	return (
-		AngleAxis(xθ, [1.0,0.0,0.0]...) *
-		AngleAxis(yθ, [0.0,1.0,0.0]...) *
-		AngleAxis(zθ, [0.0,0.0,1.0]...)
-	) * mesh
-end
+rotate_mesh(mesh, θx=0.0, θy=0.0) = (
+	AngleAxis(θx, 1.0, 0.0, 0.0) *
+	AngleAxis(θy, 0.0, 1.0, 0.0)
+) * mesh
 
-# ╔═╡ 1d282cc4-599d-4607-ab00-b619587f1ab7
-BOX_CONNECTIONS = (
-	[0,0,0,0,0,0,7,7,7,7,7,7],
-	[3,3,5,5,6,6,3,3,5,5,6,6],
-	[1,2,1,4,2,4,1,2,1,4,2,4],
-)
+# ╔═╡ e6d58929-a2a8-4358-87ea-a0983de0fd2b
+θ_range = 0.0:1e-4:π
 
 # ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
 md"""
-xθ $(@bind xθ Slider(0.0:1e-4:π, default=0.0, show_value=true))
-
-yθ $(@bind yθ Slider(0.0:1e-4:π, default=0.0, show_value=true))
-
-zθ $(@bind zθ Slider(0.0:1e-4:π, default=0.0, show_value=true))
+θx $(@bind θx Slider(θ_range, default=0.25π, show_value=true))\
+θy $(@bind θy Slider(θ_range, default=0.75π, show_value=true))
 """
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
 begin
 	cube_center = [0.0, 0.0, 0.0]
-	X, Y, Z = rotate_mesh(cube_mesh(cube_center), xθ, yθ, zθ)
+	X, Y, Z = rotate_mesh(cube_mesh(cube_center), θx, θy)
 
 	# create a random rotation matrix (uniformly distributed over all 3D rotations)
     # r = rand(RotMatrix{3})
+
 	mesh3d(
 		X, Y, Z;
 		connections = BOX_CONNECTIONS,
 		title = "Cube Rotation",
 		xlabel = "x", ylabel = "y", zlabel = "z",
-		legend = :none, opacity=1.0
+		legend = :none,
+		lims=(-1.5, 1.5),
+		# aspec_ratio not working for z axis:
+		# https://github.com/JuliaPlots/Plots.jl/issues/1949
+		# just eyed this out...
+		aspect_ratio=0.8,
+		opacity=1.0,
+		fillcolor=[:red, :red, :green, :green, :blue, :blue, :purple, :purple, :orange, :orange, :yellow, :yellow],
+		fillalpha=0.9,
+		linewidth=1,
+		linecolor=:black,
 	)
 end
 
@@ -1159,17 +1163,14 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╠═10b21328-8133-11ec-1cb7-b199cf96266b
-# ╠═64934204-8ffb-4088-97af-579f653e9bae
 # ╠═3b54755b-e67e-4d9e-b977-3929156fee01
-# ╠═ff531895-b6b5-4170-b2ca-27b86a3c16f3
-# ╠═77829290-d3b7-446c-a3e2-dd012df34c13
+# ╠═01f720c9-b218-41f4-b7c7-73c3b7ccf26d
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
-# ╠═2d35b3c5-3b40-4626-b252-32caacdb7f03
 # ╠═32b1a8d8-b2b5-417d-a6e8-4190914d6c9f
-# ╠═1d282cc4-599d-4607-ab00-b619587f1ab7
+# ╠═e6d58929-a2a8-4358-87ea-a0983de0fd2b
 # ╠═9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
-# ╠═585fe328-f923-4e4f-bcf2-1c9f26dde37d
-# ╠═323a9a5b-d649-4de3-a58a-a5e729f23310
+# ╟─585fe328-f923-4e4f-bcf2-1c9f26dde37d
+# ╟─323a9a5b-d649-4de3-a58a-a5e729f23310
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
