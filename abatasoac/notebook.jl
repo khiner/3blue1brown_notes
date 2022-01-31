@@ -33,8 +33,8 @@ begin
 	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
 	# See [docs](https://docs.juliaplots.org/stable/generated/gr/#gr-ref47)
 	# for details on `Plot.mesh3d::connections`.
-	fan_connections(n_triangles=1) = [
-		zeros(Int, n_triangles)';
+	fan_connections(n_triangles=1,from_end=false) = [
+		fill(from_end ? n_triangles + 2 : 0, n_triangles)';
 		collect(1:n_triangles)';
 		collect(2:n_triangles+1)';
 	]
@@ -63,8 +63,8 @@ begin
 		x, y, z = position - dimensions / 2
 
 		return [
-			[x x+l x   x+l x   x+l x   x+l];
-			[y y   y+w y+w y   y   y+w y+w];
+			[x x+l x+l x   x   x   x+l x+l];
+			[y y   y+w y+w y+w y   y   y+w];
 			[z z   z   z   z+h z+h z+h z+h];
 		]
 	end
@@ -96,11 +96,17 @@ begin
 	)
 
 	# Two triangles per face = 2*6=12 triangles
-	BOX_CONNECTIONS = [
-		[0 1  0 0  0 0  1 1  2 2  4 4];
-		[1 2  1 4  2 4  3 5  3 6  5 6];
-		[2 3  5 5  6 6  7 7  7 7  7 7];
-	]
+	# Fan 5 triangles each starting from [0 0 0] and [l w h] corners,
+	# and add two remaining triangles that don't fit the fan pattern.
+	BOX_CONNECTIONS = hcat(
+		fan_connections(5),
+		[
+			[0  7];
+			[6  6];
+			[1  1];
+		],
+		fan_connections(5, true)
+	)
 end
 
 # ╔═╡ ba80ef83-6602-4e8f-89ce-0997b098a30b
@@ -130,7 +136,7 @@ function plot_cube(center, θx, θy,
 
 		outline_shadow && plot!(
 			rows(shadow_mesh)...;
-			w=2, c=:black
+			w=3, c=:black
 		)
 		fill_shadow && mesh3d!(
 			rows(shadow_mesh)...;
