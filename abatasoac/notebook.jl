@@ -22,6 +22,10 @@ using Logging, Plots, PlutoUI, LinearAlgebra, Rotations, LazySets
 begin
 	rows(X::AbstractMatrix) = [X[i,:] for i in 1:size(X,1)]
 	cols(X::AbstractMatrix) = [X[:,j] for j in 1:size(X,2)]
+	cols_to_matrix(x::AbstractVector) = reduce(hcat, x)
+	interleave(x::AbstractVector, y=x) = collect(Iterators.flatten(zip(x,y)))
+	append_row(x::AbstractMatrix) = vcat(x, zeros(size(x, 2))')
+	append_first_col(x::AbstractMatrix) = hcat(x, x[:,1])
 end
 
 # ╔═╡ 65e69b16-e2d7-4fa2-81be-2b54e243c404
@@ -100,21 +104,15 @@ begin
 	# and add two remaining triangles that don't fit the fan pattern.
 	BOX_CONNECTIONS = hcat(
 		fan_connections(5),
-		[
-			0  7;
-			1  1;
-			6  6;
-		],
+		[0  7;
+		 1  1;
+		 6  6],
 		fan_connections(5, true)
 	)
 end
 
-# ╔═╡ ba80ef83-6602-4e8f-89ce-0997b098a30b
-begin
-	interleave(x::AbstractVector, y=x) = collect(Iterators.flatten(zip(x,y)))
-	append_row(x::AbstractMatrix) = vcat(x, zeros(size(x, 2))')
-	append_first_col(x::AbstractMatrix) = hcat(x, x[:,1])
-end
+# ╔═╡ 2d4fd0df-0459-4e88-bc33-38f49875d66f
+
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
 function plot_cube(center, rotation; title="Cube Rotation",
@@ -125,12 +123,17 @@ function plot_cube(center, rotation; title="Cube Rotation",
 
 	Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
 	if fill_shadow || outline_shadow
-		# The shadow outline is the convex hull of the x/y coords of the cube.
-		shadow_mesh = convex_hull(cols(mesh[1:2,:]))
-		# Convert vector of vectors to matrix, add back a `z=0` row, and
-		# connect the last point to the first to complete the outline.
-		shadow_mesh = reduce(hcat, shadow_mesh) |> append_first_col |> append_row
+		shadow_outline = mesh[1:2,:] |> # Grab x/y submatrix (drop z)
+			cols |> # `convex_hull` takes a list of 2D points
+			convex_hull # Shadow outline is the convex hull of the 2D points
 
+		shadow_mesh = shadow_outline |>
+			cols_to_matrix |> # Convert back to matrix
+			append_first_col |> # Connect last point to first to complete the outline
+			append_row # Add back a `z=0` row
+
+		# TODO plot the cumulative average area over time
+		shadow_area = LazySets.area(VPolygon(shadow_outline))
 		outline_shadow && plot!(
 			rows(shadow_mesh)...;
 			w=3, c=:black
@@ -1425,7 +1428,7 @@ version = "0.9.1+5"
 # ╠═4f2ee4d2-fe87-4992-a8da-79f08965ec74
 # ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
-# ╠═ba80ef83-6602-4e8f-89ce-0997b098a30b
+# ╠═2d4fd0df-0459-4e88-bc33-38f49875d66f
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
 # ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
