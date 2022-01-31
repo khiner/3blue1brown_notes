@@ -101,9 +101,9 @@ begin
 	BOX_CONNECTIONS = hcat(
 		fan_connections(5),
 		[
-			[0  7];
-			[6  6];
-			[1  1];
+			0  7;
+			1  1;
+			6  6;
 		],
 		fan_connections(5, true)
 	)
@@ -117,14 +117,11 @@ begin
 end
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
-function plot_cube(center, θx, θy,
+function plot_cube(center, rotation; title="Cube Rotation",
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
 	fill_shadow=true, outline_shadow=true)
 
-	mesh = rotate_about_center(cube_mesh(center), xy_rotation(θx, θy))
-
-	# create a random rotation matrix (uniformly distributed over all 3D rotations)
-    # r = rand(RotMatrix{3})
+	mesh = rotate_about_center(cube_mesh(center), rotation)
 
 	Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
 	if fill_shadow || outline_shadow
@@ -148,7 +145,7 @@ function plot_cube(center, θx, θy,
 	mesh3d!(
 		rows(mesh)...;
 		connections=BOX_CONNECTIONS |> rows |> Tuple,
-		title="Cube Rotation",
+		title=title,
 		xlabel="x", ylabel="y", zlabel="z",
 		legend=:none,
 		xlim=lims[1], ylim=lims[2], zlim=lims[3],
@@ -175,19 +172,31 @@ z $(@bind z Slider(position_ranges[3], default=0, show_value=true))
 """
 
 # ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
-plot_cube([x y z], θx, θy)
+plot_cube([x y z], xy_rotation(θx, θy))
 
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
 	# Go back and forth, with a full x/y axis spin for a nice loop
 	prs = [vcat(pr[1:2:end], reverse(pr[1:2:end])) for pr in position_ranges]
-	anim = @animate for (x, y, z, θx, θy) in zip(prs[1], prs[2], prs[3], θ_range, θ_range)
-	    plot_cube([x y z], θx, θy)
+	bounce_anim = @animate for (x, y, z, θx, θy) in zip(prs[1], prs[2], prs[3], θ_range, θ_range)
+	    plot_cube([x y z], xy_rotation(θx, θy), title="Rotating and moving cube")
 	end
 end
 
 # ╔═╡ adf88b45-81a0-4c97-a94f-04da50446ce4
-gif(anim, fps=50)
+gif(bounce_anim, fps=50)
+
+# ╔═╡ 53a09cd6-16ba-4974-9e85-1176669d1a21
+begin
+	# Go back and forth, with a full x/y axis spin for a nice loop
+	rand_anim = @animate for i in 1:101
+		# create a random rotation matrix (uniformly distributed over all 3D rotations)
+	    plot_cube([0 0 2], rand(RotMatrix{3}), title="Random rotation")
+	end
+end
+
+# ╔═╡ 71f3bb1b-9222-4c0f-879f-021ddbc7171b
+gif(rand_anim, fps=10)
 
 # ╔═╡ 585fe328-f923-4e4f-bcf2-1c9f26dde37d
 md"""
@@ -1438,6 +1447,8 @@ version = "0.9.1+5"
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
 # ╠═04dd70de-3e5c-45e6-8cb0-682b402061eb
 # ╠═adf88b45-81a0-4c97-a94f-04da50446ce4
+# ╠═53a09cd6-16ba-4974-9e85-1176669d1a21
+# ╠═71f3bb1b-9222-4c0f-879f-021ddbc7171b
 # ╟─585fe328-f923-4e4f-bcf2-1c9f26dde37d
 # ╟─323a9a5b-d649-4de3-a58a-a5e729f23310
 # ╟─00000000-0000-0000-0000-000000000001
