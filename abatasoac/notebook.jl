@@ -70,25 +70,15 @@ begin
 	)
 end
 
-# ╔═╡ e6d58929-a2a8-4358-87ea-a0983de0fd2b
+# ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
 begin
-	θ_range = 0.0:1e-4:π
-	location_range = -1.0:1e-4:1.0
+	θ_range = LinRange(0, 2π, 101)
+	position_range = LinRange(-1, 1, 101)
 end
 
-# ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
-md"""
-θx $(@bind θx Slider(θ_range, default=0.25π, show_value=true))\
-θy $(@bind θy Slider(θ_range, default=0.75π, show_value=true))\
-x $(@bind x Slider(location_range, default=0, show_value=true))\
-y $(@bind y Slider(location_range, default=0, show_value=true))\
-z $(@bind z Slider(location_range, default=0, show_value=true))
-"""
-
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
-begin
-	cube_center = [x y z]
-	mesh = rotate_about_center(cube_mesh(cube_center), xy_rotation(θx, θy))
+function plot_cube(center, θx, θy)
+	mesh = rotate_about_center(cube_mesh(center), xy_rotation(θx, θy))
 
 	# create a random rotation matrix (uniformly distributed over all 3D rotations)
     # r = rand(RotMatrix{3})
@@ -111,6 +101,31 @@ begin
 		linecolor=:black,
 	)
 end
+
+# ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
+md"""
+θx $(@bind θx Slider(θ_range, default=π/4, show_value=true))\
+θy $(@bind θy Slider(θ_range, default=3π/4, show_value=true))\
+x $(@bind x Slider(position_range, default=0, show_value=true))\
+y $(@bind y Slider(position_range, default=0, show_value=true))\
+z $(@bind z Slider(position_range, default=0, show_value=true))
+"""
+
+# ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
+plot_cube([x y z], θx, θy)
+
+# ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
+begin
+	# Go back and forth, with a full x/y axis spin for a nice loop
+	p_r = LinRange(-1, 1, floor(Int, length(position_range) / 2))
+	p_r = vcat(p_r, reverse(p_r))
+	anim = @animate for (x, y, z, θx, θy) in zip(p_r, p_r, p_r, θ_range, θ_range)
+	    plot_cube([x y z], θx, θy)
+	end
+end
+
+# ╔═╡ adf88b45-81a0-4c97-a94f-04da50446ce4
+gif(anim, fps=50)
 
 # ╔═╡ 585fe328-f923-4e4f-bcf2-1c9f26dde37d
 md"""
@@ -1187,10 +1202,13 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╠═10b21328-8133-11ec-1cb7-b199cf96266b
 # ╠═1c7eba8f-285e-44cd-a99a-7725c6856f70
-# ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
-# ╠═e6d58929-a2a8-4358-87ea-a0983de0fd2b
-# ╠═9a15a4ae-3081-4008-abde-fdb111d80a69
+# ╟─88498d15-e83f-4385-8da1-87f5cbc6b8d0
+# ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
+# ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
+# ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
+# ╠═04dd70de-3e5c-45e6-8cb0-682b402061eb
+# ╠═adf88b45-81a0-4c97-a94f-04da50446ce4
 # ╟─585fe328-f923-4e4f-bcf2-1c9f26dde37d
 # ╟─323a9a5b-d649-4de3-a58a-a5e729f23310
 # ╟─00000000-0000-0000-0000-000000000001
