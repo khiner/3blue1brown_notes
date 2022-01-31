@@ -33,11 +33,11 @@ begin
 	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
 	# See [docs](https://docs.juliaplots.org/stable/generated/gr/#gr-ref47)
 	# for details on `Plot.mesh3d::connections`.
-	fan_connections(n_triangles=1) = (
-		zeros(Int, n_triangles),
-		collect(1:n_triangles),
-		collect(2:n_triangles+1),
-	)
+	fan_connections(n_triangles=1) = [
+		zeros(Int, n_triangles)';
+		collect(1:n_triangles)';
+		collect(2:n_triangles+1)';
+	]
 
 	fan_connections(mesh::AbstractMatrix) = fan_connections(size(mesh, 2) - 2)
 end
@@ -96,11 +96,11 @@ begin
 	)
 
 	# Two triangles per face = 2*6=12 triangles
-	BOX_CONNECTIONS = (
-		[0,1, 0,0, 0,0, 1,1, 2,2, 4,4],
-		[1,2, 1,4, 2,4, 3,5, 3,6, 5,6],
-		[2,3, 5,5, 6,6, 7,7, 7,7, 7,7],
-	)
+	BOX_CONNECTIONS = [
+		[0 1  0 0  0 0  1 1  2 2  4 4];
+		[1 2  1 4  2 4  3 5  3 6  5 6];
+		[2 3  5 5  6 6  7 7  7 7  7 7];
+	]
 end
 
 # ╔═╡ ba80ef83-6602-4e8f-89ce-0997b098a30b
@@ -134,14 +134,14 @@ function plot_cube(center, θx, θy,
 		)
 		fill_shadow && mesh3d!(
 			rows(shadow_mesh)...;
-			connections=fan_connections(shadow_mesh),
+			connections=fan_connections(shadow_mesh) |> rows |> Tuple,
 			color=:gray
 		)
 	end
 
 	mesh3d!(
 		rows(mesh)...;
-		connections=BOX_CONNECTIONS,
+		connections=BOX_CONNECTIONS |> rows |> Tuple,
 		title="Cube Rotation",
 		xlabel="x", ylabel="y", zlabel="z",
 		legend=:none,
