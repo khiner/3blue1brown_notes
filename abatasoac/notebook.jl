@@ -15,28 +15,51 @@ macro bind(def, element)
 end
 
 # ╔═╡ 10b21328-8133-11ec-1cb7-b199cf96266b
-using Plots # Using default GR backend
+# Using default GR backend for Plots
+using Plots, PlutoUI, LinearAlgebra, Rotations 
 
-# ╔═╡ 3b54755b-e67e-4d9e-b977-3929156fee01
-using LinearAlgebra, Rotations
-
-# ╔═╡ 01f720c9-b218-41f4-b7c7-73c3b7ccf26d
-using PlutoUI
+# ╔═╡ 1c7eba8f-285e-44cd-a99a-7725c6856f70
+row_vectors(X::Matrix) = [X[i,:] for i in 1:size(X,1)]
 
 # ╔═╡ 88498d15-e83f-4385-8da1-87f5cbc6b8d0
 begin
-	function box_mesh(position=[0.0, 0.0, 0.0], dimensions=[1.0, 1.0, 1.0])
+	function box_mesh(position=[0.0 0.0 0.0], dimensions=[1.0 1.0 1.0])
 		l, w, h = dimensions
-		# x,y,z are center coords. convert to corner doords.
+		# `position` is the box's center. `x,y,z` are a corner vertex.
 		x, y, z = position - dimensions / 2
-		X = [x, x+l, x,   x+l, x,   x+l, x,   x+l]
-		Y = [y, y,   y+w, y+w, y,   y,   y+w, y+w]
-		Z = [z, z,   z,   z,   z+h, z+h, z+h, z+h]
-		return [X,Y,Z]
+
+		return [
+			[x x+l x   x+l x   x+l x   x+l];
+			[y y   y+w y+w y   y   y+w y+w];
+			[z z   z   z   z+h z+h z+h z+h];
+		]
 	end
 
 	# A cube is a box where all dimensions (l/w/h) are the same
-	cube_mesh(position=[0.0, 0.0, 0.0], l=1.0) = box_mesh(position, [l,l,l])
+	cube_mesh(position=[0.0 0.0 0.0], l=1.0) = box_mesh(position, [l l l])
+
+	function get_xyzlwh(box_mesh::Matrix)
+		x, y, z = box_mesh[:,begin]
+		l, w, h = box_mesh[:,end] - [x, y, z]
+		return x, y, z, l, w, h
+	end
+
+	function get_center(box_mesh::Matrix)
+		x, y, z, l, w, h = get_xyzlwh(box_mesh)
+		return [x, y, z] + [l, w, h] / 2	
+	end
+
+	# Translate a box mesh so its center is at the origin,
+	# then perform the provided rotation, then translate back.
+	function rotate_about_center(box_mesh::Matrix, rotation::Rotation{3})
+		center = get_center(box_mesh)
+		return rotation * (box_mesh .- center) .+ center
+	end
+
+	xy_rotation(θx=0.0, θy=0.0) = (
+		AngleAxis(θx, 1.0, 0.0, 0.0) *
+		AngleAxis(θy, 0.0, 1.0, 0.0)
+	)
 
 	# Two triangles per face = 2*6=12 triangles
 	# See https://docs.juliaplots.org/stable/generated/gr/#gr-ref47
@@ -47,36 +70,36 @@ begin
 	)
 end
 
-# ╔═╡ 32b1a8d8-b2b5-417d-a6e8-4190914d6c9f
-rotate_mesh(mesh, θx=0.0, θy=0.0) = (
-	AngleAxis(θx, 1.0, 0.0, 0.0) *
-	AngleAxis(θy, 0.0, 1.0, 0.0)
-) * mesh
-
 # ╔═╡ e6d58929-a2a8-4358-87ea-a0983de0fd2b
-θ_range = 0.0:1e-4:π
+begin
+	θ_range = 0.0:1e-4:π
+	location_range = -1.0:1e-4:1.0
+end
 
 # ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
 md"""
 θx $(@bind θx Slider(θ_range, default=0.25π, show_value=true))\
-θy $(@bind θy Slider(θ_range, default=0.75π, show_value=true))
+θy $(@bind θy Slider(θ_range, default=0.75π, show_value=true))\
+x $(@bind x Slider(location_range, default=0, show_value=true))\
+y $(@bind y Slider(location_range, default=0, show_value=true))\
+z $(@bind z Slider(location_range, default=0, show_value=true))
 """
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
 begin
-	cube_center = [0.0, 0.0, 0.0]
-	X, Y, Z = rotate_mesh(cube_mesh(cube_center), θx, θy)
+	cube_center = [x y z]
+	mesh = rotate_about_center(cube_mesh(cube_center), xy_rotation(θx, θy))
 
 	# create a random rotation matrix (uniformly distributed over all 3D rotations)
     # r = rand(RotMatrix{3})
 
 	mesh3d(
-		X, Y, Z;
+		row_vectors(mesh)...;
 		connections = BOX_CONNECTIONS,
 		title = "Cube Rotation",
 		xlabel = "x", ylabel = "y", zlabel = "z",
 		legend = :none,
-		lims=(-1.5, 1.5),
+		lims=(-1.7, 1.7),
 		# aspec_ratio not working for z axis:
 		# https://github.com/JuliaPlots/Plots.jl/issues/1949
 		# just eyed this out...
@@ -1163,10 +1186,8 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╠═10b21328-8133-11ec-1cb7-b199cf96266b
-# ╠═3b54755b-e67e-4d9e-b977-3929156fee01
-# ╠═01f720c9-b218-41f4-b7c7-73c3b7ccf26d
+# ╠═1c7eba8f-285e-44cd-a99a-7725c6856f70
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
-# ╠═32b1a8d8-b2b5-417d-a6e8-4190914d6c9f
 # ╠═e6d58929-a2a8-4358-87ea-a0983de0fd2b
 # ╠═9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
