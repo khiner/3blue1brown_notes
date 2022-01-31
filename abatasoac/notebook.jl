@@ -20,12 +20,27 @@ using Logging, Plots, PlutoUI, LinearAlgebra, Rotations, Polyhedra, LazySets
 
 # ╔═╡ 1c7eba8f-285e-44cd-a99a-7725c6856f70
 begin
-	rows(X) = [X[i,:] for i in 1:size(X,1)]
-	cols(X) = [X[:,j] for j in 1:size(X,2)]
+	rows(X::AbstractMatrix) = [X[i,:] for i in 1:size(X,1)]
+	cols(X::AbstractMatrix) = [X[:,j] for j in 1:size(X,2)]
 end
 
 # ╔═╡ 65e69b16-e2d7-4fa2-81be-2b54e243c404
 # Logging.disable_logging(Logging.Error) # ignore <= warnings
+
+# ╔═╡ 4f2ee4d2-fe87-4992-a8da-79f08965ec74
+begin
+	# Returns triangle connections for a convex polygon using a
+	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
+	# See [docs](https://docs.juliaplots.org/stable/generated/gr/#gr-ref47)
+	# for details on `Plot.mesh3d::connections`.
+	fan_connections(n_triangles=1) = (
+		zeros(Int, n_triangles),
+		collect(1:n_triangles),
+		collect(2:n_triangles+1),
+	)
+
+	fan_connections(mesh::AbstractMatrix) = fan_connections(size(mesh, 2) - 2)
+end
 
 # ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
 begin
@@ -57,20 +72,20 @@ begin
 	# A cube is a box where all dimensions (l/w/h) are the same
 	cube_mesh(position=[0.0 0.0 0.0], l=cube_l) = box_mesh(position, [l l l])
 
-	function get_xyzlwh(box_mesh::Matrix)
+	function get_xyzlwh(box_mesh::AbstractMatrix)
 		x, y, z = box_mesh[:,begin]
 		l, w, h = box_mesh[:,end] - [x, y, z]
 		return x, y, z, l, w, h
 	end
 
-	function get_center(box_mesh::Matrix)
+	function get_center(box_mesh::AbstractMatrix)
 		x, y, z, l, w, h = get_xyzlwh(box_mesh)
 		return [x, y, z] + [l, w, h] / 2	
 	end
 
 	# Translate a box mesh so its center is at the origin,
 	# then perform the provided rotation, then translate back.
-	function rotate_about_center(box_mesh::Matrix, rotation::Rotation{3})
+	function rotate_about_center(box_mesh::AbstractMatrix, rotation::Rotation{3})
 		center = get_center(box_mesh)
 		return rotation * (box_mesh .- center) .+ center
 	end
@@ -81,7 +96,6 @@ begin
 	)
 
 	# Two triangles per face = 2*6=12 triangles
-	# See https://docs.juliaplots.org/stable/generated/gr/#gr-ref47
 	BOX_CONNECTIONS = (
 		[0,1, 0,0, 0,0, 1,1, 2,2, 4,4],
 		[1,2, 1,4, 2,4, 3,5, 3,6, 5,6],
@@ -89,40 +103,40 @@ begin
 	)
 end
 
+# ╔═╡ ba80ef83-6602-4e8f-89ce-0997b098a30b
+begin
+	interleave(x::AbstractVector, y=x) = collect(Iterators.flatten(zip(x,y)))
+	append_row(x::AbstractMatrix) = vcat(x, zeros(size(x, 2))')
+	append_first(x::AbstractMatrix) = hcat(x, x[:,1])
+end
+
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
 function plot_cube(center, θx, θy,
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
-	show_shadow=true, show_shadow_outline=true)
+	fill_shadow=true, outline_shadow=true)
 
 	mesh = rotate_about_center(cube_mesh(center), xy_rotation(θx, θy))
-	mesh_2d = mesh[1:2,:] # just the x/y coords to find the shadow
-
-	# Two triangles per face.
-	# This interleaves `face_colors` with itself to double every element.
-	# From https://discourse.julialang.org/t/combining-two-arrays-with-alternating-elements/15498/3
-	fillcolor = collect(Iterators.flatten(zip(face_colors,face_colors)))
 
 	# create a random rotation matrix (uniformly distributed over all 3D rotations)
     # r = rand(RotMatrix{3})
 
-	Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.4, legend=false) # z=0 plane
-	if show_shadow || show_shadow_outline
+	Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
+	if fill_shadow || outline_shadow
 		# The shadow outline is the convex hull of the x/y coords of the cube.
 		shadow_mesh = convex_hull(cols(mesh[1:2,:]))
-		shadow_mesh = reduce(hcat, shadow_mesh) # convert vector of vectors to matrix
-		shadow_mesh = vcat(shadow_mesh, zeros(size(shadow_mesh, 2))') # append z=0 row
-		# Connect the last point to the first in the outline.
-		shadow_mesh = hcat(shadow_mesh, shadow_mesh[:,1])
-		# shadow_outline_shape = Shape(shadow_outline[1,:], shadow_outline[2,:])
-		# Shape not working in 3d...
-		# show_shadow && plot!(shadow_outline_shape, fillcolor=:red)
-		show_shadow_outline && plot!(rows(shadow_mesh)...; w = 2,c=:black)
-		#connections = (
-		#[0,1, 0,0, 0,0,],
-		#[1,2, 1,4, 2,4,],
-		#[2,3, 5,5, 6,6,],
-		#)
-		# mesh3d!(rows(shadow_mesh)...; connections=connections, color=:red)
+		# Convert vector of vectors to matrix, add back a `z=0` row, and
+		# connect the last point to the first to complete the outline.
+		shadow_mesh = reduce(hcat, shadow_mesh) |> append_first |> append_row
+
+		outline_shadow && plot!(
+			rows(shadow_mesh)...;
+			w=2, c=:black
+		)
+		fill_shadow && mesh3d!(
+			rows(shadow_mesh)...;
+			connections=fan_connections(shadow_mesh),
+			color=:gray
+		)
 	end
 
 	mesh3d!(
@@ -132,12 +146,13 @@ function plot_cube(center, θx, θy,
 		xlabel="x", ylabel="y", zlabel="z",
 		legend=:none,
 		xlim=lims[1], ylim=lims[2], zlim=lims[3],
-		# `aspect_ratio` not working for z axis:
+		# `aspect_ratio` not working for z axis, so just eyed this out:
 		# https://github.com/JuliaPlots/Plots.jl/issues/1949
-		# just eyed this out...
 		aspect_ratio=0.8,
 		opacity=1.0,
-		fillcolor=fillcolor,
+		# Two triangles per face, so interleave `face_colors` with
+		# itself to double every element.
+		fillcolor=interleave(face_colors),
 		fillalpha=0.9,
 		linewidth=1,
 		linecolor=:black,
@@ -159,7 +174,7 @@ plot_cube([x y z], θx, θy)
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
 	# Go back and forth, with a full x/y axis spin for a nice loop
-	prs = [vcat(pr[1:2:end], reverse(pr[1:2:end])) for pr in position_ranges] # every other frame
+	prs = [vcat(pr[1:2:end], reverse(pr[1:2:end])) for pr in position_ranges]
 	anim = @animate for (x, y, z, θx, θy) in zip(prs[1], prs[2], prs[3], θ_range, θ_range)
 	    plot_cube([x y z], θx, θy)
 	end
@@ -1408,8 +1423,10 @@ version = "0.9.1+5"
 # ╠═10b21328-8133-11ec-1cb7-b199cf96266b
 # ╠═1c7eba8f-285e-44cd-a99a-7725c6856f70
 # ╠═65e69b16-e2d7-4fa2-81be-2b54e243c404
+# ╠═4f2ee4d2-fe87-4992-a8da-79f08965ec74
 # ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
+# ╠═ba80ef83-6602-4e8f-89ce-0997b098a30b
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
 # ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
