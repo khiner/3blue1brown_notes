@@ -73,12 +73,20 @@ end
 # ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
 begin
 	θ_range = LinRange(0, 2π, 101)
-	position_range = LinRange(-1, 1, 101)
+	position_range = LinRange(-1, 1, 101) # odd number to get exactly 0 in the middle
 end
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
-function plot_cube(center, θx, θy)
+function plot_cube(center, θx, θy,
+	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
+	show_shadow=true)
+
 	mesh = rotate_about_center(cube_mesh(center), xy_rotation(θx, θy))
+
+	# Two triangles per face.
+	# This interleaves `face_colors` with itself to double every element.
+	# From https://discourse.julialang.org/t/combining-two-arrays-with-alternating-elements/15498/3
+	fillcolor = collect(Iterators.flatten(zip(face_colors,face_colors)))
 
 	# create a random rotation matrix (uniformly distributed over all 3D rotations)
     # r = rand(RotMatrix{3})
@@ -90,12 +98,12 @@ function plot_cube(center, θx, θy)
 		xlabel = "x", ylabel = "y", zlabel = "z",
 		legend = :none,
 		lims=(-1.7, 1.7),
-		# aspec_ratio not working for z axis:
+		# `aspect_ratio` not working for z axis:
 		# https://github.com/JuliaPlots/Plots.jl/issues/1949
 		# just eyed this out...
 		aspect_ratio=0.8,
 		opacity=1.0,
-		fillcolor=[:red, :red, :green, :green, :blue, :blue, :purple, :purple, :orange, :orange, :yellow, :yellow],
+		fillcolor=fillcolor,
 		fillalpha=0.9,
 		linewidth=1,
 		linecolor=:black,
@@ -117,7 +125,7 @@ plot_cube([x y z], θx, θy)
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
 	# Go back and forth, with a full x/y axis spin for a nice loop
-	p_r = LinRange(-1, 1, floor(Int, length(position_range) / 2))
+	p_r = position_range[1:2:end] # every other frame
 	p_r = vcat(p_r, reverse(p_r))
 	anim = @animate for (x, y, z, θx, θy) in zip(p_r, p_r, p_r, θ_range, θ_range)
 	    plot_cube([x y z], θx, θy)
