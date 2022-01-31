@@ -16,7 +16,7 @@ end
 
 # ╔═╡ 10b21328-8133-11ec-1cb7-b199cf96266b
 # Using default GR backend for Plots
-using Logging, Plots, PlutoUI, LinearAlgebra, Rotations, Polyhedra, LazySets
+using Logging, Plots, PlutoUI, LinearAlgebra, Rotations, LazySets
 
 # ╔═╡ 1c7eba8f-285e-44cd-a99a-7725c6856f70
 begin
@@ -113,7 +113,7 @@ end
 begin
 	interleave(x::AbstractVector, y=x) = collect(Iterators.flatten(zip(x,y)))
 	append_row(x::AbstractMatrix) = vcat(x, zeros(size(x, 2))')
-	append_first(x::AbstractMatrix) = hcat(x, x[:,1])
+	append_first_col(x::AbstractMatrix) = hcat(x, x[:,1])
 end
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
@@ -129,7 +129,7 @@ function plot_cube(center, rotation; title="Cube Rotation",
 		shadow_mesh = convex_hull(cols(mesh[1:2,:]))
 		# Convert vector of vectors to matrix, add back a `z=0` row, and
 		# connect the last point to the first to complete the outline.
-		shadow_mesh = reduce(hcat, shadow_mesh) |> append_first |> append_row
+		shadow_mesh = reduce(hcat, shadow_mesh) |> append_first_col |> append_row
 
 		outline_shadow && plot!(
 			rows(shadow_mesh)...;
@@ -184,15 +184,13 @@ begin
 end
 
 # ╔═╡ adf88b45-81a0-4c97-a94f-04da50446ce4
-gif(bounce_anim, fps=50)
+gif(bounce_anim, fps=30)
 
 # ╔═╡ 53a09cd6-16ba-4974-9e85-1176669d1a21
-begin
-	# Go back and forth, with a full x/y axis spin for a nice loop
-	rand_anim = @animate for i in 1:101
-		# create a random rotation matrix (uniformly distributed over all 3D rotations)
-	    plot_cube([0 0 2], rand(RotMatrix{3}), title="Random rotation")
-	end
+# For each frame, create a random rotation matrix
+# (uniformly distributed over all 3D rotations)
+rand_anim = @animate for _ in 1:50
+    plot_cube([0 0 2], rand(RotMatrix{3}), title="Random rotation")
 end
 
 # ╔═╡ 71f3bb1b-9222-4c0f-879f-021ddbc7171b
@@ -324,14 +322,12 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
 Rotations = "6038ab10-8711-5258-84ad-4b1120ba62dc"
 
 [compat]
 LazySets = "~1.55.0"
 Plots = "~1.25.7"
 PlutoUI = "~0.7.32"
-Polyhedra = "~0.6.18"
 Rotations = "~1.2.0"
 """
 
@@ -639,12 +635,6 @@ deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "
 git-tree-sha1 = "aa22e1ee9e722f1da183eb33370df4c1aeb6c2cd"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
 version = "0.63.1+0"
-
-[[deps.GenericLinearAlgebra]]
-deps = ["LinearAlgebra", "Printf", "Random"]
-git-tree-sha1 = "ac44f4f51ffee9ff1ea50bd3fbb5677ea568d33d"
-uuid = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
-version = "0.2.7"
 
 [[deps.GeometryBasics]]
 deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
@@ -1013,12 +1003,6 @@ deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript"
 git-tree-sha1 = "ae6145ca68947569058866e443df69587acc1806"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 version = "0.7.32"
-
-[[deps.Polyhedra]]
-deps = ["GenericLinearAlgebra", "GeometryBasics", "JuMP", "LinearAlgebra", "MutableArithmetics", "RecipesBase", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "e0b240c9e454ad65bfa3f565acf3889826981daa"
-uuid = "67491407-f73d-577b-9b50-8179a7c68029"
-version = "0.6.18"
 
 [[deps.Preferences]]
 deps = ["TOML"]
