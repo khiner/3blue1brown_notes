@@ -21,6 +21,19 @@ using Plots, PlutoUI, LinearAlgebra, Rotations
 # ╔═╡ 1c7eba8f-285e-44cd-a99a-7725c6856f70
 row_vectors(X::Matrix) = [X[i,:] for i in 1:size(X,1)]
 
+# ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
+begin
+	cube_l = 1.0
+	range_n = 101 # odd number to get exact middle as an element
+	θ_range = LinRange(0, 2π, range_n)
+	position_ranges = [
+		LinRange(-1, 1, range_n), # x
+		LinRange(-1, 1, range_n), # y
+		LinRange(cube_l, 2 + cube_l, range_n), # z - keep cube safely above z=0
+	]
+	lims = [[pr[begin] - cube_l - 0.1, pr[end] + cube_l + 0.1] for pr in position_ranges]
+end
+
 # ╔═╡ 88498d15-e83f-4385-8da1-87f5cbc6b8d0
 begin
 	function box_mesh(position=[0.0 0.0 0.0], dimensions=[1.0 1.0 1.0])
@@ -36,7 +49,7 @@ begin
 	end
 
 	# A cube is a box where all dimensions (l/w/h) are the same
-	cube_mesh(position=[0.0 0.0 0.0], l=1.0) = box_mesh(position, [l l l])
+	cube_mesh(position=[0.0 0.0 0.0], l=cube_l) = box_mesh(position, [l l l])
 
 	function get_xyzlwh(box_mesh::Matrix)
 		x, y, z = box_mesh[:,begin]
@@ -70,12 +83,6 @@ begin
 	)
 end
 
-# ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
-begin
-	θ_range = LinRange(0, 2π, 101)
-	position_range = LinRange(-1, 1, 101) # odd number to get exactly 0 in the middle
-end
-
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
 function plot_cube(center, θx, θy,
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
@@ -91,13 +98,14 @@ function plot_cube(center, θx, θy,
 	# create a random rotation matrix (uniformly distributed over all 3D rotations)
     # r = rand(RotMatrix{3})
 
-	mesh3d(
+	surface(lims[1], lims[2], (x, a) -> 0, alpha=0.4, legend=false)
+	mesh3d!(
 		row_vectors(mesh)...;
 		connections = BOX_CONNECTIONS,
 		title = "Cube Rotation",
 		xlabel = "x", ylabel = "y", zlabel = "z",
 		legend = :none,
-		lims=(-1.7, 1.7),
+		xlim=lims[1], ylim=lims[2], zlim=lims[3],
 		# `aspect_ratio` not working for z axis:
 		# https://github.com/JuliaPlots/Plots.jl/issues/1949
 		# just eyed this out...
@@ -114,9 +122,9 @@ end
 md"""
 θx $(@bind θx Slider(θ_range, default=π/4, show_value=true))\
 θy $(@bind θy Slider(θ_range, default=3π/4, show_value=true))\
-x $(@bind x Slider(position_range, default=0, show_value=true))\
-y $(@bind y Slider(position_range, default=0, show_value=true))\
-z $(@bind z Slider(position_range, default=0, show_value=true))
+x $(@bind x Slider(position_ranges[1], default=0, show_value=true))\
+y $(@bind y Slider(position_ranges[2], default=0, show_value=true))\
+z $(@bind z Slider(position_ranges[3], default=0, show_value=true))
 """
 
 # ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
@@ -125,9 +133,8 @@ plot_cube([x y z], θx, θy)
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
 	# Go back and forth, with a full x/y axis spin for a nice loop
-	p_r = position_range[1:2:end] # every other frame
-	p_r = vcat(p_r, reverse(p_r))
-	anim = @animate for (x, y, z, θx, θy) in zip(p_r, p_r, p_r, θ_range, θ_range)
+	prs = [vcat(pr[1:2:end], reverse(pr[1:2:end])) for pr in position_ranges] # every other frame
+	anim = @animate for (x, y, z, θx, θy) in zip(prs[1], prs[2], prs[3], θ_range, θ_range)
 	    plot_cube([x y z], θx, θy)
 	end
 end
@@ -1210,8 +1217,8 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╠═10b21328-8133-11ec-1cb7-b199cf96266b
 # ╠═1c7eba8f-285e-44cd-a99a-7725c6856f70
-# ╟─88498d15-e83f-4385-8da1-87f5cbc6b8d0
 # ╠═706be7ce-f583-4300-913c-130aa71c9b0f
+# ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
 # ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
