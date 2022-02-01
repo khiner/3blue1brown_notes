@@ -117,12 +117,13 @@ end
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
 function plot_cube(center, rotation; title="Cube Rotation",
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
-	fill_shadow=true, outline_shadow=true)
+	fill_shadow=true, outline_shadow=true,
+	return_shadow_area=false)
 
 	mesh = rotate_about_center(cube_mesh(center), rotation)
 
-	Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
-	if fill_shadow || outline_shadow
+	cube_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
+	if fill_shadow || outline_shadow || plot_shadow_area
 		shadow_outline = mesh[1:2,:] |> # Grab x/y submatrix (drop z)
 			cols |> # `convex_hull` takes a list of 2D points
 			convex_hull # Shadow outline is the convex hull of the 2D points
@@ -132,8 +133,6 @@ function plot_cube(center, rotation; title="Cube Rotation",
 			append_first_col |> # Connect last point to first to complete the outline
 			append_row # Add back a `z=0` row
 
-		# TODO plot the cumulative average area over time
-		shadow_area = LazySets.area(VPolygon(shadow_outline))
 		outline_shadow && plot!(
 			rows(shadow_mesh)...;
 			w=3, c=:black
@@ -163,6 +162,12 @@ function plot_cube(center, rotation; title="Cube Rotation",
 		linewidth=1,
 		linecolor=:black,
 	)
+	if return_shadow_area
+		shadow_area = LazySets.area(VPolygon(shadow_outline))
+		return cube_plot, shadow_area
+	end
+
+	return cube_plot
 end
 
 # ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
@@ -190,10 +195,25 @@ end
 gif(bounce_anim, fps=30)
 
 # ╔═╡ 53a09cd6-16ba-4974-9e85-1176669d1a21
-# For each frame, create a random rotation matrix
-# (uniformly distributed over all 3D rotations)
-rand_anim = @animate for _ in 1:50
-    plot_cube([0 0 2], rand(RotMatrix{3}), title="Random rotation")
+begin
+	cummean(A) = cumsum(A) ./ (1:length(A))
+
+	# For each frame, create a random rotation matrix
+	# (uniformly distributed over all 3D rotations)
+	A = Vector{Float64}()
+	rand_anim = @animate for _ in 1:101
+	    cube_plot, a = plot_cube([0 0 2], rand(RotMatrix{3}),
+			title="Random rotation", return_shadow_area=true)
+		append!(A, a)
+		means = cummean(A)
+		shadow_mean_plot = plot(means,
+			title="Shadow area running mean = $(round(means[end], digits=4))",
+			c=:black, legend=false,
+			xlabel="Frame", ylabel="Area", ylim=[0.75, 2.2], w=2,
+		)
+		plot!(A, label="Frame area")
+		plot(cube_plot, shadow_mean_plot; layout=grid(2, 1, heights=[0.8, 0.2])) 
+	end
 end
 
 # ╔═╡ 71f3bb1b-9222-4c0f-879f-021ddbc7171b
