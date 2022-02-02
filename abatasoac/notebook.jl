@@ -44,6 +44,17 @@ begin
 	]
 
 	fan_connections(mesh::AbstractMatrix) = fan_connections(size(mesh, 2) - 2)
+
+	# Two triangles per face = 2*6=12 triangles
+	# Fan 5 triangles each starting from [0 0 0] and [l w h] corners,
+	# and add two remaining triangles that don't fit the fan pattern.
+	const BOX_CONNECTIONS = hcat(
+		fan_connections(5),
+		[0  7;
+		 1  1;
+		 6  6],
+		fan_connections(5, true)
+	)
 end
 
 # ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
@@ -61,20 +72,16 @@ end
 
 # ╔═╡ 88498d15-e83f-4385-8da1-87f5cbc6b8d0
 begin
-	function box_mesh(position=[0.0 0.0 0.0], dimensions=[1.0 1.0 1.0])
-		l, w, h = dimensions
-		# `position` is the box's center. `x,y,z` are a corner vertex.
-		x, y, z = position - dimensions / 2
-
-		return [
-			[x x+l x+l x   x   x   x+l x+l];
-			[y y   y+w y+w y+w y   y   y+w];
-			[z z   z   z   z+h z+h z+h z+h];
-		]
+	struct Box
+		dimensions::AbstractMatrix
+		position::AbstractMatrix
+		rotation::Rotation{3}
 	end
 
+	Box() = Box([1.0 1.0 1.0], [0.0 0.0 0.0], Rotation{3})
 	# A cube is a box where all dimensions (l/w/h) are the same
-	cube_mesh(position=[0.0 0.0 0.0], l=cube_l) = box_mesh(position, [l l l])
+	Cube(length=1.0, position=[0.0 0.0 0.0], rotation=Rotation{3}) =
+		Box([length length length], position, rotation)
 
 	function get_xyzlwh(box_mesh::AbstractMatrix)
 		x, y, z = box_mesh[:,begin]
@@ -87,44 +94,40 @@ begin
 		return [x, y, z] + [l, w, h] / 2	
 	end
 
-	# Translate a box mesh so its center is at the origin,
-	# then perform the provided rotation, then translate back.
-	function rotate_about_center(box_mesh::AbstractMatrix, rotation::Rotation{3})
+	function mesh(box::Box)
+		l, w, h = box.dimensions
+		# `position` is the box's center. `x,y,z` are a corner vertex.
+		x, y, z = box.position - box.dimensions / 2
+
+		box_mesh = [
+			[x x+l x+l x   x   x   x+l x+l];
+			[y y   y+w y+w y+w y   y   y+w];
+			[z z   z   z   z+h z+h z+h z+h];
+		]
+
+		# Translate a box mesh so its center is at the origin,
+		# then perform the provided rotation, then translate back.
 		center = get_center(box_mesh)
-		return rotation * (box_mesh .- center) .+ center
+		return box.rotation * (box_mesh .- center) .+ center
 	end
 
 	xy_rotation(θx=0.0, θy=0.0) = (
 		AngleAxis(θx, 1.0, 0.0, 0.0) *
 		AngleAxis(θy, 0.0, 1.0, 0.0)
 	)
-
-	# Two triangles per face = 2*6=12 triangles
-	# Fan 5 triangles each starting from [0 0 0] and [l w h] corners,
-	# and add two remaining triangles that don't fit the fan pattern.
-	BOX_CONNECTIONS = hcat(
-		fan_connections(5),
-		[0  7;
-		 1  1;
-		 6  6],
-		fan_connections(5, true)
-	)
 end
 
-# ╔═╡ 2d4fd0df-0459-4e88-bc33-38f49875d66f
-
-
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
-function plot_cube(center, rotation; title="Cube Rotation",
+function plot_box(box::Box; title="Cube Rotation",
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
 	fill_shadow=true, outline_shadow=true,
 	return_shadow_area=false)
 
-	mesh = rotate_about_center(cube_mesh(center), rotation)
+	box_mesh = mesh(box)
 
-	cube_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
+	box_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
 	if fill_shadow || outline_shadow || plot_shadow_area
-		shadow_outline = mesh[1:2,:] |> # Grab x/y submatrix (drop z)
+		shadow_outline = box_mesh[1:2,:] |> # Grab x/y submatrix (drop z)
 			cols |> # `convex_hull` takes a list of 2D points
 			convex_hull # Shadow outline is the convex hull of the 2D points
 
@@ -145,7 +148,7 @@ function plot_cube(center, rotation; title="Cube Rotation",
 	end
 
 	mesh3d!(
-		rows(mesh)...;
+		rows(box_mesh)...;
 		connections=BOX_CONNECTIONS |> rows |> Tuple,
 		title=title,
 		xlabel="x", ylabel="y", zlabel="z",
@@ -164,10 +167,10 @@ function plot_cube(center, rotation; title="Cube Rotation",
 	)
 	if return_shadow_area
 		shadow_area = LazySets.area(VPolygon(shadow_outline))
-		return cube_plot, shadow_area
+		return box_plot, shadow_area
 	end
 
-	return cube_plot
+	return box_plot
 end
 
 # ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
@@ -180,14 +183,17 @@ z $(@bind z Slider(position_ranges[3], default=0, show_value=true))
 """
 
 # ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
-plot_cube([x y z], xy_rotation(θx, θy))
+plot_box(Cube(cube_l, [x y z], xy_rotation(θx, θy)))
 
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
 	# Go back and forth, with a full x/y axis spin for a nice loop
 	prs = [vcat(pr[1:2:end], reverse(pr[1:2:end])) for pr in position_ranges]
-	bounce_anim = @animate for (x, y, z, θx, θy) in zip(prs[1], prs[2], prs[3], θ_range, θ_range)
-	    plot_cube([x y z], xy_rotation(θx, θy), title="Rotating and moving cube")
+	bounce_anim = @animate for (x, y, z, θx, θy) in zip(
+		prs[1], prs[2], prs[3], θ_range, θ_range
+	)
+		cube = Cube(cube_l, [x y z], xy_rotation(θx, θy))
+	    plot_box(cube, title="Rotating and moving cube")
 	end
 end
 
@@ -201,15 +207,15 @@ begin
 	# For each frame, create a random rotation matrix
 	# (uniformly distributed over all 3D rotations)
 	A = Vector{Float64}()
-	rand_anim = @animate for _ in 1:101
-	    cube_plot, a = plot_cube([0 0 2], rand(RotMatrix{3}),
-			title="Random rotation", return_shadow_area=true)
+	rand_anim = @animate for _ in 1:50
+		cube = Cube(cube_l, [0 0 2], rand(RotMatrix{3}))
+	    cube_plot, a = plot_box(cube, title="Random rotation", return_shadow_area=true)
 		append!(A, a)
 		means = cummean(A)
 		shadow_mean_plot = plot(means,
 			title="Shadow area running mean = $(round(means[end], digits=4))",
 			c=:black, legend=false,
-			xlabel="Frame", ylabel="Area", ylim=[0.75, 2.2], w=2,
+			xlabel="Frame", ylabel="Area", ylim=[0.75 2.2], w=2,
 		)
 		plot!(A, label="Frame area")
 		plot(cube_plot, shadow_mean_plot; layout=grid(2, 1, heights=[0.8, 0.2])) 
@@ -1448,7 +1454,6 @@ version = "0.9.1+5"
 # ╠═4f2ee4d2-fe87-4992-a8da-79f08965ec74
 # ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
-# ╠═2d4fd0df-0459-4e88-bc33-38f49875d66f
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
 # ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
