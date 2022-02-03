@@ -57,31 +57,18 @@ begin
 	)
 end
 
-# ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
-begin
-	cube_l = 1.0
-	range_n = 101 # odd number to get exact middle as an element
-	θ_range = LinRange(0, 2π, range_n)
-	position_ranges = [
-		LinRange(-1, 1, range_n), # x
-		LinRange(-1, 1, range_n), # y
-		LinRange(cube_l, 2 + cube_l, range_n), # z - keep cube safely above z=0
-	]
-	lims = [[pr[begin] - cube_l - 0.1, pr[end] + cube_l + 0.1] for pr in position_ranges]
-end
-
 # ╔═╡ 88498d15-e83f-4385-8da1-87f5cbc6b8d0
 begin
 	struct Box
 		dimensions::AbstractMatrix
 		position::AbstractMatrix
-		rotation::Rotation{3}
+		Θ::AbstractMatrix
 	end
 
-	Box() = Box([1.0 1.0 1.0], [0.0 0.0 0.0], Rotation{3})
+	Box() = Box([1.0 1.0 1.0], [0.0 0.0 0.0], [0.0 0.0])
 	# A cube is a box where all dimensions (l/w/h) are the same
-	Cube(length=1.0, position=[0.0 0.0 0.0], rotation=Rotation{3}) =
-		Box([length length length], position, rotation)
+	Cube(length=1.0, position=[0.0 0.0 0.0], Θ=[0.0 0.0]) =
+		Box([length length length], position, Θ)
 
 	function get_xyzlwh(box_mesh::AbstractMatrix)
 		x, y, z = box_mesh[:,begin]
@@ -108,13 +95,26 @@ begin
 		# Translate a box mesh so its center is at the origin,
 		# then perform the provided rotation, then translate back.
 		center = get_center(box_mesh)
-		return box.rotation * (box_mesh .- center) .+ center
+		return Rotation(box) * (box_mesh .- center) .+ center
 	end
 
-	xy_rotation(θx=0.0, θy=0.0) = (
-		AngleAxis(θx, 1.0, 0.0, 0.0) *
-		AngleAxis(θy, 0.0, 1.0, 0.0)
+	Rotation(box::Box) = (
+		AngleAxis(box.Θ[1], 1.0, 0.0, 0.0) *
+		AngleAxis(box.Θ[2], 0.0, 1.0, 0.0)
 	)
+end
+
+# ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
+begin
+	cube_l = 1.0
+	range_n = 101 # odd number to get exact middle as an element
+	θ_range = LinRange(0, 2π, range_n)
+	position_ranges = [
+		LinRange(-1, 1, range_n), # x
+		LinRange(-1, 1, range_n), # y
+		LinRange(cube_l, 2 + cube_l, range_n), # z - keep cube safely above z=0
+	]
+	lims = [[pr[begin] - cube_l - 0.1, pr[end] + cube_l + 0.1] for pr in position_ranges]
 end
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
@@ -123,9 +123,11 @@ function plot_box(box::Box; title="Cube Rotation",
 	fill_shadow=true, outline_shadow=true,
 	return_shadow_area=false)
 
+	# z=0 plane
+	box_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false)
+
 	box_mesh = mesh(box)
 
-	box_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false) # z=0 plane
 	if fill_shadow || outline_shadow || plot_shadow_area
 		shadow_outline = box_mesh[1:2,:] |> # Grab x/y submatrix (drop z)
 			cols |> # `convex_hull` takes a list of 2D points
@@ -183,7 +185,7 @@ z $(@bind z Slider(position_ranges[3], default=0, show_value=true))
 """
 
 # ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
-plot_box(Cube(cube_l, [x y z], xy_rotation(θx, θy)))
+plot_box(Cube(cube_l, [x y z], [θx θy]))
 
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
@@ -192,7 +194,7 @@ begin
 	bounce_anim = @animate for (x, y, z, θx, θy) in zip(
 		prs[1], prs[2], prs[3], θ_range, θ_range
 	)
-		cube = Cube(cube_l, [x y z], xy_rotation(θx, θy))
+		cube = Cube(cube_l, [x y z], [θx θy])
 	    plot_box(cube, title="Rotating and moving cube")
 	end
 end
@@ -1452,8 +1454,8 @@ version = "0.9.1+5"
 # ╠═1c7eba8f-285e-44cd-a99a-7725c6856f70
 # ╠═65e69b16-e2d7-4fa2-81be-2b54e243c404
 # ╠═4f2ee4d2-fe87-4992-a8da-79f08965ec74
-# ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
+# ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
 # ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
