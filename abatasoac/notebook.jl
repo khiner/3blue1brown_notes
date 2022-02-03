@@ -106,19 +106,20 @@ end
 
 # ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
 begin
-	cube_l = 1.0
 	range_n = 101 # odd number to get exact middle as an element
-	θ_range = LinRange(0, 2π, range_n)
+	l_range = LinRange(0.5, 2.0, range_n)
+	θ_range = LinRange(0.0, 2π, range_n)
 	position_ranges = [
-		LinRange(-1, 1, range_n), # x
-		LinRange(-1, 1, range_n), # y
-		LinRange(cube_l, 2 + cube_l, range_n), # z - keep cube safely above z=0
+		LinRange(-1.0, 1.0, range_n), # x
+		LinRange(-1.0, 1.0, range_n), # y
+		LinRange(l_range[end], 2l_range[end], range_n), # z - keep cube safely above z=0
 	]
-	lims = [[pr[begin] - cube_l - 0.1, pr[end] + cube_l + 0.1] for pr in position_ranges]
 end
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
-function plot_box(box::Box; title="Cube Rotation",
+function plot_box(box::Box;
+	lims=[[pr[begin] - 2.1, pr[end] + 2.1] for pr in position_ranges],
+	title="Cube Rotation",
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
 	fill_shadow=true, outline_shadow=true,
 	return_shadow_area=false)
@@ -177,6 +178,7 @@ end
 
 # ╔═╡ 9a15a4ae-3081-4008-abde-fdb111d80a69
 md"""
+length $(@bind l Slider(l_range, default=1.0, show_value=true))\
 θx $(@bind θx Slider(θ_range, default=π/4, show_value=true))\
 θy $(@bind θy Slider(θ_range, default=3π/4, show_value=true))\
 x $(@bind x Slider(position_ranges[1], default=0, show_value=true))\
@@ -185,7 +187,7 @@ z $(@bind z Slider(position_ranges[3], default=0, show_value=true))
 """
 
 # ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
-plot_box(Cube(cube_l, [x y z], [θx θy]))
+plot_box(Cube(l, [x y z], [θx θy]))
 
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
@@ -194,8 +196,8 @@ begin
 	bounce_anim = @animate for (x, y, z, θx, θy) in zip(
 		prs[1], prs[2], prs[3], θ_range, θ_range
 	)
-		cube = Cube(cube_l, [x y z], [θx θy])
-	    plot_box(cube, title="Rotating and moving cube")
+		cube = Cube(1.0, [x y z], [θx θy])
+	    plot_box(cube; title="Rotating and moving cube")
 	end
 end
 
@@ -210,8 +212,10 @@ begin
 	# (uniformly distributed over all 3D rotations)
 	A = Vector{Float64}()
 	rand_anim = @animate for _ in 1:50
-		cube = Cube(cube_l, [0 0 2], rand(RotMatrix{3}))
-	    cube_plot, a = plot_box(cube, title="Random rotation", return_shadow_area=true)
+		cube = Cube(1.0, [0 0 2], rand(RotMatrix{3}))
+	    cube_plot, a = plot_box(cube;
+			lims=[[-2, 2], [-2, 2], [-0.1, 4]],
+			title="Random rotation", return_shadow_area=true)
 		append!(A, a)
 		means = cummean(A)
 		shadow_mean_plot = plot(means,
@@ -1457,7 +1461,7 @@ version = "0.9.1+5"
 # ╠═88498d15-e83f-4385-8da1-87f5cbc6b8d0
 # ╠═706be7ce-f583-4300-913c-130aa71c9b0f
 # ╠═c7abd24b-7315-4410-87dc-4a9aedac0997
-# ╟─9a15a4ae-3081-4008-abde-fdb111d80a69
+# ╠═9a15a4ae-3081-4008-abde-fdb111d80a69
 # ╠═5a71ad34-7f34-435b-ac9d-f5298a666446
 # ╠═04dd70de-3e5c-45e6-8cb0-682b402061eb
 # ╠═adf88b45-81a0-4c97-a94f-04da50446ce4
