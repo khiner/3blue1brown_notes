@@ -37,7 +37,7 @@ begin
 	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
 	# See [docs](https://docs.juliaplots.org/stable/generated/gr/#gr-ref47)
 	# for details on `Plot.mesh3d::connections`.
-	fan_connections(n_triangles=1,from_end=false) = [
+	fan_connections(n_triangles=1, from_end=false) = [
 		fill(from_end ? n_triangles + 2 : 0, n_triangles)';
 		collect(1:n_triangles)';
 		collect(2:n_triangles+1)';
@@ -45,9 +45,9 @@ begin
 
 	fan_connections(mesh::AbstractMatrix) = fan_connections(size(mesh, 2) - 2)
 
-	# Two triangles per face = 2*6=12 triangles
-	# Fan 5 triangles each starting from [0 0 0] and [l w h] corners,
-	# and add two remaining triangles that don't fit the fan pattern.
+	# Fan 2 sets of 5 triangles each starting from opposite corners,
+	# and add two triangles to connect the two fans.
+	# 2 triangles per face = 2*6=12 triangles.
 	const BOX_CONNECTIONS = hcat(
 		fan_connections(5),
 		[0  7;
@@ -124,7 +124,7 @@ function plot_box(box::Box;
 	show_shadow=true,
 	return_shadow_area=false)
 
-	# z=0 plane
+	# Plot the z=0 plane
 	box_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false)
 
 	box_mesh = mesh(box)
@@ -230,12 +230,12 @@ begin
 			title="Random rotation", return_shadow_area=true)
 		append!(A, a)
 		means = cummean(A)
-		shadow_mean_plot = plot(means,
+		shadow_mean_plot = plot(means;
 			title="Shadow area running mean = $(round(means[end], digits=4))",
 			c=:black, legend=false,
 			xlabel="Frame", ylabel="Area", ylim=[0.75 2.2], w=2,
 		)
-		plot!(A, label="Frame area")
+		plot!(A; label="Frame area")
 		plot(cube_plot, shadow_mean_plot; layout=grid(2, 1, heights=[0.8, 0.2])) 
 	end
 end
