@@ -37,7 +37,7 @@ begin
 	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
 	# See [docs](https://docs.juliaplots.org/stable/generated/gr/#gr-ref47)
 	# for details on `Plot.mesh3d::connections`.
-	fan_connections(n_triangles=1, from_end=false) = [
+	fan_connections(n_triangles=1; from_end=false) = [
 		fill(from_end ? n_triangles + 2 : 0, n_triangles)';
 		collect(1:n_triangles)';
 		collect(2:n_triangles+1)';
@@ -45,15 +45,24 @@ begin
 
 	fan_connections(mesh::AbstractMatrix) = fan_connections(size(mesh, 2) - 2)
 
+	# https://en.wikipedia.org/wiki/Triangle_strip
+	strip_connections(n_triangles=1;) = [
+		collect(0:n_triangles-1)';
+		collect(1:n_triangles)';
+		collect(2:n_triangles+1)';
+	]
+
+	strip_connections(mesh::AbstractMatrix) = strip_connections(size(mesh, 2) - 2)
+
 	# Fan 2 sets of 5 triangles each starting from opposite corners,
-	# and add two triangles to connect the two fans.
+	# and two triangles to connect the two fans.
 	# 2 triangles per face = 2*6=12 triangles.
 	const BOX_CONNECTIONS = hcat(
 		fan_connections(5),
 		[0  7;
 		 1  1;
 		 6  6],
-		fan_connections(5, true)
+		fan_connections(5; from_end=true)
 	)
 end
 
@@ -147,8 +156,13 @@ function plot_box(box::Box;
 			# Subset of original box mesh points responsible for the shadow,
 			# with last point connected to first
 			shadow_mesh = box_mesh[:,shadow_hull_indices] |> append_first_col
+
 			# Replace z dimension with zeros
 			shadow_outline_mesh = shadow_mesh[1:2,:] |> append_row
+
+			shadow_ray_mesh = interleave(
+				cols(shadow_mesh), cols(shadow_outline_mesh)
+			) |> cols_to_matrix
 
 			plot!(
 				rows(shadow_outline_mesh)...;
@@ -158,6 +172,11 @@ function plot_box(box::Box;
 				rows(shadow_outline_mesh)...;
 				connections=fan_connections(shadow_outline_mesh) |> rows |> Tuple,
 				color=:gray
+			)
+			mesh3d!(
+				rows(shadow_ray_mesh)...;
+				connections=strip_connections(shadow_ray_mesh) |> rows |> Tuple,
+				color=:gray, linewidth=1, linecolor=:black, fillalpha=0.7,
 			)
 		end
 	end
