@@ -130,56 +130,46 @@ function plot_box(box::Box;
 	lims=[[pr[begin] - 2.1, pr[end] + 2.1] for pr in position_ranges],
 	title="Cube Rotation",
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
-	show_shadow=true,
 	return_shadow_area=false)
+
+	box_mesh = mesh(box)
+	box_points_3d = cols(box_mesh)
+	shadow_hull_2d = convex_hull(cols(box_mesh[1:2,:])) # takes list of 2d points
+
+	# Janky: I can't find a way for `convex_hull` to take a 3d set of points,
+	# but only compute the 2d convex hull & return corresponding 3d points.
+	# This would make it easy to figue out which of the original 3d points
+	# Corresponds to each 2d shadow point.
+	# Instead, I'm just finding the 3d point that matches each 2d point.
+	shadow_hull_indices = [
+		findfirst(p_3d -> p_3d[1:2] == p_2d, box_points_3d)
+		for p_2d in shadow_hull_2d
+	]
+
+	# Subset of original box mesh points responsible for the shadow,
+	# with last point connected to first
+	shadow_mesh = box_mesh[:,shadow_hull_indices] |> append_first_col
+
+	# Replace z dimension with zeros
+	shadow_outline_mesh = shadow_mesh[1:2,:] |> append_row
+
+	shadow_ray_mesh = interleave(cols(shadow_mesh), cols(shadow_outline_mesh)) |>
+		cols_to_matrix
 
 	# Plot the z=0 plane
 	box_plot = Plots.surface(lims[1], lims[2], (x, a) -> 0, alpha=0.25, legend=false)
 
-	box_mesh = mesh(box)
-
-	if show_shadow || return_shadow_area
-		box_points_3d = cols(box_mesh)
-		shadow_hull_2d = convex_hull(cols(box_mesh[1:2,:])) # takes list of 2d points
-
-		# Janky: I can't find a way for `convex_hull` to take a 3d set of points,
-		# but only compute the 2d convex hull & return corresponding 3d points.
-		# This would make it easy to figue out which of the original 3d points
-		# Corresponds to each 2d shadow point.
-		# Instead, I'm just finding the 3d point that matches each 2d point.
-		shadow_hull_indices = [
-			findfirst(p_3d -> p_3d[1:2] == p_2d, box_points_3d)
-			for p_2d in shadow_hull_2d
-		]
-
-		if show_shadow
-			# Subset of original box mesh points responsible for the shadow,
-			# with last point connected to first
-			shadow_mesh = box_mesh[:,shadow_hull_indices] |> append_first_col
-
-			# Replace z dimension with zeros
-			shadow_outline_mesh = shadow_mesh[1:2,:] |> append_row
-
-			shadow_ray_mesh = interleave(
-				cols(shadow_mesh), cols(shadow_outline_mesh)
-			) |> cols_to_matrix
-
-			plot!(
-				rows(shadow_outline_mesh)...;
-				w=3, c=:black
-			)
-			mesh3d!(
-				rows(shadow_outline_mesh)...;
-				connections=fan_connections(shadow_outline_mesh) |> rows |> Tuple,
-				color=:gray
-			)
-			mesh3d!(
-				rows(shadow_ray_mesh)...;
-				connections=strip_connections(shadow_ray_mesh) |> rows |> Tuple,
-				color=:gray, linewidth=1, linecolor=:black, fillalpha=0.7,
-			)
-		end
-	end
+	plot!(rows(shadow_outline_mesh)...; w=3, c=:black)
+	mesh3d!(
+		rows(shadow_outline_mesh)...;
+		connections=fan_connections(shadow_outline_mesh) |> rows |> Tuple,
+		color=:gray
+	)
+	mesh3d!(
+		rows(shadow_ray_mesh)...;
+		connections=strip_connections(shadow_ray_mesh) |> rows |> Tuple,
+		color=:gray, linewidth=1, linecolor=:black, fillalpha=0.7,
+	)
 
 	mesh3d!(
 		rows(box_mesh)...;
@@ -199,6 +189,7 @@ function plot_box(box::Box;
 		linewidth=1,
 		linecolor=:black,
 	)
+
 	if return_shadow_area
 		shadow_area = LazySets.area(VPolygon(shadow_hull_2d))
 		return box_plot, shadow_area
