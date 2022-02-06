@@ -33,7 +33,9 @@ Logging.disable_logging(Logging.Error) # ignore <= warnings
 
 # ╔═╡ 4f2ee4d2-fe87-4992-a8da-79f08965ec74
 begin
-	num_triangles(mesh::AbstractMatrix) = size(mesh, 2) - 2
+	Mesh = AbstractMatrix
+
+	num_triangles(mesh::Mesh) = size(mesh, 2) - 2
 
 	# Returns triangle connections for a convex polygon using a
 	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
@@ -45,7 +47,7 @@ begin
 		collect(2:n_triangles+1)';
 	]
 
-	fan_connections(mesh::AbstractMatrix) = fan_connections(num_triangles(mesh))
+	fan_connections(mesh::Mesh) = fan_connections(num_triangles(mesh))
 
 	# https://en.wikipedia.org/wiki/Triangle_strip
 	strip_connections(n_triangles=1;) = [
@@ -54,7 +56,7 @@ begin
 		collect(2:n_triangles+1)';
 	]
 
-	strip_connections(mesh::AbstractMatrix) = strip_connections(num_triangles(mesh))
+	strip_connections(mesh::Mesh) = strip_connections(num_triangles(mesh))
 
 	# Fan 2 sets of 5 triangles each starting from opposite corners,
 	# and two triangles to connect the two fans.
@@ -81,13 +83,13 @@ begin
 	Cube(length=1.0, position=[0.0 0.0 0.0], Θ=[0.0 0.0]) =
 		Box([length length length], position, Θ)
 
-	function get_xyzlwh(box_mesh::AbstractMatrix)
+	function get_xyzlwh(box_mesh::Mesh)
 		x, y, z = box_mesh[:,begin]
 		l, w, h = box_mesh[:,end] - [x, y, z]
 		return x, y, z, l, w, h
 	end
 
-	function get_center(box_mesh::AbstractMatrix)
+	function get_center(box_mesh::Mesh)
 		x, y, z, l, w, h = get_xyzlwh(box_mesh)
 		return [x, y, z] + [l, w, h] / 2	
 	end
