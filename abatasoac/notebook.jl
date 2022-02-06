@@ -33,6 +33,8 @@ Logging.disable_logging(Logging.Error) # ignore <= warnings
 
 # ╔═╡ 4f2ee4d2-fe87-4992-a8da-79f08965ec74
 begin
+	num_triangles(mesh::AbstractMatrix) = size(mesh, 2) - 2
+
 	# Returns triangle connections for a convex polygon using a
 	# [triangle fan](https://en.wikipedia.org/wiki/Triangle_fan) approach.
 	# See [docs](https://docs.juliaplots.org/stable/generated/gr/#gr-ref47)
@@ -43,7 +45,7 @@ begin
 		collect(2:n_triangles+1)';
 	]
 
-	fan_connections(mesh::AbstractMatrix) = fan_connections(size(mesh, 2) - 2)
+	fan_connections(mesh::AbstractMatrix) = fan_connections(num_triangles(mesh))
 
 	# https://en.wikipedia.org/wiki/Triangle_strip
 	strip_connections(n_triangles=1;) = [
@@ -52,7 +54,7 @@ begin
 		collect(2:n_triangles+1)';
 	]
 
-	strip_connections(mesh::AbstractMatrix) = strip_connections(size(mesh, 2) - 2)
+	strip_connections(mesh::AbstractMatrix) = strip_connections(num_triangles(mesh))
 
 	# Fan 2 sets of 5 triangles each starting from opposite corners,
 	# and two triangles to connect the two fans.
@@ -168,12 +170,14 @@ function plot_box(box::Box;
 	mesh3d!(
 		rows(shadow_ray_mesh)...;
 		connections=strip_connections(shadow_ray_mesh) |> rows |> Tuple,
-		color=:gray, linewidth=1, linecolor=:black, fillalpha=0.7,
+		color=:gray, linewidth=1, linecolor=:black,
 	)
 
 	mesh3d!(
-		rows(box_mesh)...;
-		connections=BOX_CONNECTIONS |> rows |> Tuple,
+		rows([box_mesh shadow_ray_mesh])...;
+		connections=[
+			BOX_CONNECTIONS (strip_connections(shadow_ray_mesh) .+ size(box_mesh, 2))
+		] |> rows |> Tuple,
 		title=title,
 		xlabel="x", ylabel="y", zlabel="z",
 		legend=:none,
@@ -184,8 +188,11 @@ function plot_box(box::Box;
 		opacity=1.0,
 		# Two triangles per face, so interleave `face_colors` with
 		# itself to double every element.
-		fillcolor=interleave(face_colors),
-		fillalpha=0.9,
+		fillcolor=[
+			interleave(face_colors);
+			fill(:gray, num_triangles(shadow_ray_mesh))
+		],
+		fillalpha=0.7,
 		linewidth=1,
 		linecolor=:black,
 	)
