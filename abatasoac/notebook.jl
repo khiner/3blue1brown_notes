@@ -84,18 +84,23 @@ begin
 	Cube(length=1.0, position=[0.0 0.0 0.0], Θ=[0.0 0.0]) =
 		Box([length length length], position, Θ)
 
-	function get_xyzlwh(box_mesh::Mesh)
+	Rotation(box::Box) = (
+		AngleAxis(box.Θ[1], 1.0, 0.0, 0.0) *
+		AngleAxis(box.Θ[2], 0.0, 1.0, 0.0)
+	)
+
+	function xyzlwh(box_mesh::Mesh)
 		x, y, z = box_mesh[:,begin]
 		l, w, h = box_mesh[:,end] - [x, y, z]
 		return x, y, z, l, w, h
 	end
 
-	function get_center(box_mesh::Mesh)
-		x, y, z, l, w, h = get_xyzlwh(box_mesh)
+	function center(box_mesh::Mesh)
+		x, y, z, l, w, h = xyzlwh(box_mesh)
 		return [x, y, z] + [l, w, h] / 2	
 	end
 
-	function mesh(box::Box)
+	function mesh(box::Box)::Mesh
 		l, w, h = box.dimensions
 		# `position` is the box's center. `x,y,z` are a corner vertex.
 		x, y, z = box.position - box.dimensions / 2
@@ -108,14 +113,9 @@ begin
 
 		# Translate a box mesh so its center is at the origin,
 		# then perform the provided rotation, then translate back.
-		center = get_center(box_mesh)
-		return Rotation(box) * (box_mesh .- center) .+ center
+		c = center(box_mesh)
+		return Rotation(box) * (box_mesh .- c) .+ c
 	end
-
-	Rotation(box::Box) = (
-		AngleAxis(box.Θ[1], 1.0, 0.0, 0.0) *
-		AngleAxis(box.Θ[2], 0.0, 1.0, 0.0)
-	)
 end
 
 # ╔═╡ 706be7ce-f583-4300-913c-130aa71c9b0f
@@ -225,16 +225,14 @@ plot(Cube(l, [x y z], [θx θy]))
 begin
 	# Go back and forth, with a full x/y axis spin for a nice loop
 	prs = [vcat(pr[1:2:end], reverse(pr[1:2:end])) for pr in position_ranges]
-	bounce_anim = @animate for (x, y, z, θx, θy) in zip(
-		prs[1], prs[2], prs[3], θ_range, θ_range
-	)
-		cube = Cube(1.0, [x y z], [θx θy])
+	bouncing_cube = @animate for (x, y, z, θ) in zip(prs..., θ_range)
+		cube = Cube(1.0, [x y z], [θ θ])
 	    plot(cube; title="Rotating and moving cube")
 	end
 end
 
 # ╔═╡ adf88b45-81a0-4c97-a94f-04da50446ce4
-gif(bounce_anim, fps=30)
+gif(bouncing_cube, fps=30)
 
 # ╔═╡ 53a09cd6-16ba-4974-9e85-1176669d1a21
 begin
@@ -243,7 +241,7 @@ begin
 	# For each frame, create a random rotation matrix
 	# (uniformly distributed over all 3D rotations)
 	A = Vector{Float64}()
-	rand_anim = @animate for _ in 1:50
+	random_rotating_cube = @animate for _ in 1:50
 		cube = Cube(1.0, [0 0 2], rand(RotMatrix{3}))
 	    cube_plot, a = plot(cube;
 			lims=[[-2, 2], [-2, 2], [-0.1, 4]],
@@ -261,7 +259,7 @@ begin
 end
 
 # ╔═╡ 71f3bb1b-9222-4c0f-879f-021ddbc7171b
-gif(rand_anim, fps=10)
+gif(random_rotating_cube, fps=10)
 
 # ╔═╡ 585fe328-f923-4e4f-bcf2-1c9f26dde37d
 md"""
