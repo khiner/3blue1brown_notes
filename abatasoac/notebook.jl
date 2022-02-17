@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.17.7
+# v0.18.0
 
 using Markdown
 using InteractiveUtils
@@ -79,6 +79,7 @@ begin
 	end
 
 	Box() = Box([1.0 1.0 1.0], [0.0 0.0 0.0], [0.0 0.0])
+
 	# A cube is a box where all dimensions (l/w/h) are the same
 	Cube(length=1.0, position=[0.0 0.0 0.0], Θ=[0.0 0.0]) =
 		Box([length length length], position, Θ)
@@ -130,7 +131,7 @@ begin
 end
 
 # ╔═╡ c7abd24b-7315-4410-87dc-4a9aedac0997
-function plot_box(box::Box;
+function Plots.plot(box::Box;
 	lims=[[pr[begin] - 2.1, pr[end] + 2.1] for pr in position_ranges],
 	title="Cube Rotation",
 	face_colors=[:red, :green, :blue, :purple, :orange, :yellow],
@@ -218,7 +219,7 @@ z $(@bind z Slider(position_ranges[3], default=0, show_value=true))
 """
 
 # ╔═╡ 5a71ad34-7f34-435b-ac9d-f5298a666446
-plot_box(Cube(l, [x y z], [θx θy]))
+plot(Cube(l, [x y z], [θx θy]))
 
 # ╔═╡ 04dd70de-3e5c-45e6-8cb0-682b402061eb
 begin
@@ -228,7 +229,7 @@ begin
 		prs[1], prs[2], prs[3], θ_range, θ_range
 	)
 		cube = Cube(1.0, [x y z], [θx θy])
-	    plot_box(cube; title="Rotating and moving cube")
+	    plot(cube; title="Rotating and moving cube")
 	end
 end
 
@@ -244,7 +245,7 @@ begin
 	A = Vector{Float64}()
 	rand_anim = @animate for _ in 1:50
 		cube = Cube(1.0, [0 0 2], rand(RotMatrix{3}))
-	    cube_plot, a = plot_box(cube;
+	    cube_plot, a = plot(cube;
 			lims=[[-2, 2], [-2, 2], [-0.1, 4]],
 			title="Random rotation", return_shadow_area=true)
 		append!(A, a)
@@ -401,7 +402,7 @@ Rotations = "~1.2.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.1"
+julia_version = "1.7.2"
 manifest_format = "2.0"
 
 [[deps.AbstractPlutoDingetjes]]
